@@ -470,6 +470,34 @@
             border-radius: 4px;
         }
 
+        /* 家具样式 */
+        .furniture-item {
+            position: absolute;
+            transform-origin: center bottom;
+            cursor: grab;
+            pointer-events: auto; /* 允许交互 */
+            touch-action: none;   /* 阻止默认触摸滚动 */
+            user-select: none;
+            transition: filter 0.2s ease;
+        }
+        .furniture-item:active {
+            cursor: grabbing;
+            filter: brightness(1.1);
+            z-index: 100 !important; /* 拖拽时置顶 */
+        }
+        .furniture-item.editing {
+            outline: 2px dashed #ff8fab;
+        }
+        /* 简单的放置时的弹跳动画 */
+        @keyframes popIn {
+            0% { transform: translate(-50%, -100%) scale(0); opacity: 0; }
+            60% { transform: translate(-50%, -100%) scale(1.1); opacity: 1; }
+            100% { transform: translate(-50%, -100%) scale(1); opacity: 1; }
+        }
+        .furniture-pop {
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
         /* 顶部信息区内部卡片 & 可收起区域 */
         #pet-info-panel-toggle {
             cursor: pointer;
@@ -877,6 +905,11 @@
                 <!-- 房间背景图：高度自适应，宽度允许超出 -->
                 <img id="room-scene-bg" src="场景/场景.png" alt="房间背景" class="h-full w-auto max-w-none block select-none pointer-events-none object-cover">
 
+                <!-- 家具图层：位于背景之上，宠物之下 (或根据 Y 轴排序，暂且置于背景上) -->
+                <div id="furniture-layer" class="absolute inset-0 z-10 pointer-events-none">
+                    <!-- JS 动态插入家具图片 -->
+                </div>
+
                 <!-- 照片墙：位于房间背景墙上，用于粘贴拍立得照片 -->
                 <div id="memory-wall" class="absolute top-[20%] left-[10%] w-[30%] h-[25%] flex flex-wrap gap-2 content-start pointer-events-none z-20">
                     <!-- JS 动态插入照片 -->
@@ -1027,6 +1060,44 @@
     </div>
     <!-- BGM 播放器：循环播放，由音乐盒选择列表控制 -->
     <audio id="bgm-audio" loop></audio>
+
+    <!-- 制作家具全屏遮罩 -->
+    <div id="crafting-overlay" class="absolute inset-0 bg-black/60 z-[60] hidden flex flex-col items-center justify-center text-white">
+        <div class="relative w-32 h-32 mb-4">
+            <!-- 制作中的宠物动画容器 -->
+            <div id="crafting-pet-anim" class="w-full h-full bg-contain bg-center bg-no-repeat animate-bounce">
+                <!-- 这里可以用 CSS 动画或者 GIF，暂时用 Emoji 或占位 -->
+                <div class="text-6xl absolute inset-0 flex items-center justify-center">🔨</div>
+            </div>
+            <!-- 粒子特效容器 -->
+            <div class="absolute inset-0 pointer-events-none" id="crafting-particles"></div>
+        </div>
+        <div class="text-xl font-bold cute-font mb-2 text-[#ff8fab] drop-shadow-md">制作纪念品中...</div>
+        <div class="w-64 h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div id="crafting-progress" class="h-full bg-[#ff8fab] w-0 transition-all duration-[3000ms] ease-out"></div>
+        </div>
+        <p id="crafting-hint" class="mt-4 text-sm text-gray-200 opacity-90 text-center px-8">正在将记忆碎片凝结成形...</p>
+    </div>
+
+    <!-- 获得新物品弹窗 -->
+    <div id="reward-modal" class="absolute inset-0 bg-black/50 z-[70] hidden flex items-center justify-center">
+        <div class="bg-[#fffaf0] rounded-[32px] p-6 w-[85%] max-w-sm flex flex-col items-center shadow-2xl transform transition-all scale-95 opacity-0" id="reward-panel">
+            <div class="text-[#ff8fab] text-lg font-bold mb-1">✨ 获得新家具 ✨</div>
+            <h3 id="reward-name" class="text-xl font-bold text-gray-800 mb-4">神秘物品</h3>
+            
+            <div class="relative w-48 h-48 bg-white rounded-2xl border-4 border-[#ffcad4] shadow-inner flex items-center justify-center mb-6 overflow-hidden">
+                <!-- 光效背景 -->
+                <div class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjIiIGZpbGw9IiNmZmQxZGMiLz48L3N2Zz4=')] opacity-30"></div>
+                <div class="absolute inset-0 bg-gradient-to-b from-transparent to-[#fff0f5]/50"></div>
+                <img id="reward-image" src="" alt="New Item" class="relative z-10 max-w-[90%] max-h-[90%] object-contain drop-shadow-lg transform hover:scale-105 transition-transform duration-500">
+            </div>
+
+            <div class="flex gap-3 w-full">
+                <button id="btn-reward-close" class="flex-1 py-3 rounded-xl bg-gray-100 text-gray-500 font-bold hover:bg-gray-200 transition">放入橱柜</button>
+                <button id="btn-reward-place" class="flex-1 py-3 rounded-xl bg-[#ff8fab] text-white font-bold shadow-lg hover:bg-[#ff7b9c] transition">立即摆放</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -1073,7 +1144,8 @@
         },
         // 互动统计（用于 memoryScore 计算）
         interactionLog: [],        // { ts, time_slot } 近7天互动记录
-        nfcScans: []               // { source, ts } NFC 扫描记录（商家/玩偶）
+        nfcScans: [],              // { source, ts } NFC 扫描记录（商家/玩偶）
+        placedFurniture: []        // { id, itemId, x, y, scale, rotation } 已摆放家具
     };
 
     // 预设 NFC 来源（无硬件时模拟）
@@ -2833,39 +2905,79 @@ summary 30～50 字，第一人称，描述宠物在该地的具体表现或感�
     }
 
     function openCabinetItemDetail(item, fromCabinetModal = true) {
-        const { full: fullLabel } = getShortLabel(item);
-        const imgSrc = item.scene ? item.scene.image : 'assets/cabinet-empty.svg';
+        let fullLabel, imgSrc;
+        if (item.type === 'furniture') {
+            fullLabel = item.name;
+            imgSrc = item.image;
+        } else {
+            const { full } = getShortLabel(item);
+            fullLabel = full;
+            imgSrc = item.scene ? item.scene.image : 'assets/cabinet-empty.svg';
+        }
+
         const tier = item.tier || 'C';
         const tierClass = tier === 'S' ? 'bg-amber-400 text-amber-900' : tier === 'A' ? 'bg-purple-400 text-purple-900' : tier === 'B' ? 'bg-blue-300 text-blue-900' : 'bg-gray-300 text-gray-700';
+        
+        let actionBtn = '';
+        if (item.type === 'furniture') {
+            actionBtn = `<button type="button" class="w-full mt-3 py-3 rounded-xl bg-[#ff8fab] text-white font-bold shadow-md hover:bg-[#ff7b9c] transition active:scale-95 flex items-center justify-center gap-2" id="btn-place-item"><i class="ph-fill ph-armchair"></i> 摆放在房间</button>`;
+        }
+
         const detailHTML = `
-            <div class="flex flex-col items-center gap-4 p-4">
-                <span class="self-end text-xs font-bold px-2 py-1 rounded ${tierClass}">${tier} 级</span>
-                <img src="${imgSrc}" alt="${escapeHtml(fullLabel)}" class="max-w-full max-h-[50vh] object-contain rounded-xl shadow">
-                <p class="text-base font-bold text-[#5c4a3a] text-center">${escapeHtml(fullLabel)}</p>
-                <button type="button" class="text-sm text-[#8d7f73] underline hover:opacity-80">返回橱柜</button>
+            <div class="flex flex-col items-center gap-4 p-4 w-full">
+                <div class="w-full flex justify-end">
+                    <span class="text-xs font-bold px-2 py-1 rounded ${tierClass}">${tier} 级</span>
+                </div>
+                <div class="relative w-full aspect-square bg-white rounded-2xl flex items-center justify-center border border-gray-100 shadow-inner p-4">
+                    <img src="${imgSrc}" alt="${escapeHtml(fullLabel)}" class="max-w-full max-h-full object-contain drop-shadow-md">
+                </div>
+                <div class="text-center">
+                    <p class="text-lg font-bold text-[#5c4a3a]">${escapeHtml(fullLabel)}</p>
+                    <p class="text-xs text-gray-400 mt-1">${item.source_location ? '来源：' + escapeHtml(item.source_location) : '来源：旅行记忆'}</p>
+                </div>
+                ${actionBtn}
+                <button type="button" class="text-sm text-[#8d7f73] underline hover:opacity-80 mt-2" id="btn-back-cabinet">返回橱柜</button>
             </div>
         `;
-        if (!modalOverlay.classList.contains('hidden')) {
-            modalBody.innerHTML = detailHTML;
-        } else {
-            openModal('纪念品', detailHTML, 'cabinet');
-        }
-        const btn = modalBody.querySelector('button');
-        if (btn) btn.addEventListener('click', () => {
+        
+        const onBack = () => {
             if (fromCabinetModal && lastCabinetBodyHTML) {
+                // Restore grid view
                 modalBody.innerHTML = lastCabinetBodyHTML;
-                modalBody.addEventListener('click', function onCabinetBodyClick(e) {
-                    const slot = e.target.closest('.cabinet-slot:not(.cabinet-slot--empty)');
-                    if (!slot) return;
-                    const idx = slot.getAttribute('data-item-index');
-                    if (idx == null) return;
-                    const it = appState.cabinetItems[parseInt(idx, 10)];
-                    if (it) openCabinetItemDetail(it, true);
-                }, { once: true });
+                // Re-bind grid clicks (simple delegation)
+                const grid = modalBody.querySelector('.cabinet-shelf');
+                if (grid) {
+                     grid.addEventListener('click', function(e) {
+                        const slot = e.target.closest('.cabinet-slot[data-item-index]');
+                        if (!slot) return;
+                        const idx = slot.getAttribute('data-item-index');
+                        if (idx == null) return;
+                        const it = appState.cabinetItems[parseInt(idx, 10)];
+                        if (it) openCabinetItemDetail(it, true);
+                     });
+                }
             } else {
                 closeModal();
             }
-        });
+        };
+
+        if (!modalOverlay.classList.contains('hidden')) {
+            modalBody.innerHTML = detailHTML;
+        } else {
+            openModal('物品详情', detailHTML, 'cabinet');
+        }
+
+        // Bind buttons
+        const backBtn = document.getElementById('btn-back-cabinet');
+        if (backBtn) backBtn.addEventListener('click', onBack);
+
+        const placeBtn = document.getElementById('btn-place-item');
+        if (placeBtn) {
+            placeBtn.addEventListener('click', () => {
+                placeFurnitureInRoom(item);
+                closeModal();
+            });
+        }
     }
 
     function openDiaryModal() {
@@ -3307,6 +3419,9 @@ summary 30～50 字，第一人称，描述宠物在该地的具体表现或感�
                 // 不等待生图完成，让它在后台运行并更新 UI
                 generateImageForDiary(diaryMeta.diaryId, location, appState.petPersonality, diaryText).catch(err => console.error('[AIGC Image] Error triggering image generation:', err));
             }
+
+            // 2.2 触发家具制作 (异步，独立于日记生图)
+            triggerFurnitureCrafting(location, diaryText);
 
             // 2.5 生成一条情景记忆：优先调用 /api/memory-summary 抽取 summary/emotion/key_facts，失败则回退模板
             if (diaryMeta && diaryMeta.diaryId) {
@@ -5029,12 +5144,26 @@ summary 30～50 字，第一人称，描述宠物在该地的具体表现或感�
             html += `<div><div class="text-[10px] font-bold text-[#5c4a3a] mb-1 flex items-center gap-1"><span class="px-1 py-0.5 rounded text-[9px] ${tierClass}">${tierLabels[tier]}</span></div><div class="grid gap-2" style="grid-template-columns: repeat(${cols}, 1fr);">`;
             for (let i = 0; i < slots; i++) {
                 const { item, origIdx } = group[i] || {};
-                if (item && (item.scene || item.location)) {
-                    const scene = item.scene;
-                    const { short: shortLabel, full: fullLabel } = getShortLabel(item);
-                    const img = scene ? `<img src="${scene.image}" alt="${escapeHtml(fullLabel)}" class="w-12 h-12 rounded-xl object-cover border border-[#d4c4a8] shadow-sm" onerror="this.style.display='none';this.nextElementSibling&&this.nextElementSibling.classList.remove('hidden');">` : '';
-                    const fallback = scene ? `<span class="text-2xl hidden">🧳</span>` : `<span class="text-2xl">🧳</span>`;
-                    html += `<div class="cabinet-slot relative cursor-pointer" data-cabinet-item="true" data-item-index="${origIdx}"><span class="absolute top-0 right-0 text-[9px] font-bold px-1 py-0.5 rounded ${tierClass}">${tier}</span><div class="cabinet-slot__media">${img}${fallback}</div><span class="font-bold w-full min-w-0 line-clamp-3 text-center" title="${escapeHtml(fullLabel)}">${escapeHtml(shortLabel)}</span></div>`;
+                if (item && (item.scene || item.location || item.type === 'furniture')) {
+                    let imgHtml = '';
+                    let fallbackHtml = '';
+                    let fullLabel = '';
+                    let shortLabel = '';
+                    
+                    if (item.type === 'furniture') {
+                        fullLabel = item.name;
+                        shortLabel = item.name;
+                        imgHtml = `<img src="${item.image}" alt="${escapeHtml(fullLabel)}" class="w-12 h-12 rounded-xl object-cover border border-[#d4c4a8] shadow-sm">`;
+                    } else {
+                        const scene = item.scene;
+                        const { short, full } = getShortLabel(item);
+                        fullLabel = full;
+                        shortLabel = short;
+                        imgHtml = scene ? `<img src="${scene.image}" alt="${escapeHtml(fullLabel)}" class="w-12 h-12 rounded-xl object-cover border border-[#d4c4a8] shadow-sm" onerror="this.style.display='none';this.nextElementSibling&&this.nextElementSibling.classList.remove('hidden');">` : '';
+                        fallbackHtml = scene ? `<span class="text-2xl hidden">🧳</span>` : `<span class="text-2xl">🧳</span>`;
+                    }
+
+                    html += `<div class="cabinet-slot relative cursor-pointer" data-cabinet-item="true" data-item-index="${origIdx}"><span class="absolute top-0 right-0 text-[9px] font-bold px-1 py-0.5 rounded ${tierClass}">${tier}</span><div class="cabinet-slot__media">${imgHtml}${fallbackHtml}</div><span class="font-bold w-full min-w-0 line-clamp-3 text-center" title="${escapeHtml(fullLabel)}">${escapeHtml(shortLabel)}</span></div>`;
                 } else {
                     html += cabinetPlaceholderHTML;
                 }
@@ -5151,7 +5280,252 @@ summary 30～50 字，第一人称，描述宠物在该地的具体表现或感�
         }
     }
 
+    // --- 家具生成与摆放系统 ---
+    
+    // 触发家具制作流程
+    async function triggerFurnitureCrafting(location, diaryText) {
+        // 1. 显示制作遮罩与动画
+        const overlay = document.getElementById('crafting-overlay');
+        const progressBar = document.getElementById('crafting-progress');
+        const hint = document.getElementById('crafting-hint');
+        
+        overlay.classList.remove('hidden');
+        progressBar.style.width = '0%';
+        hint.textContent = '正在分析旅行记忆碎片...';
+
+        // 模拟进度条
+        setTimeout(() => { progressBar.style.width = '30%'; }, 100);
+        setTimeout(() => { 
+            progressBar.style.width = '60%'; 
+            hint.textContent = '正在构建纪念品模型...';
+        }, 2000);
+
+        try {
+            // 2. 调用 API 生成家具
+            const response = await fetch('/api/generate-furniture', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    location: location,
+                    diary_excerpt: diaryText.slice(0, 200), // 截取前200字作为上下文
+                    city: location.split('·')[0] || ''
+                })
+            });
+
+            if (!response.ok) throw new Error('生成失败');
+            const data = await response.json();
+
+            // 进度条跑满
+            progressBar.style.width = '100%';
+            hint.textContent = '制作完成！';
+            
+            // 3. 延迟展示奖励（等待进度条动画）
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                showRewardModal(data);
+            }, 800);
+
+        } catch (error) {
+            console.error('Furniture gen failed:', error);
+            overlay.classList.add('hidden');
+            // 失败时不打断流程，静默失败或 Toast 提示
+        }
+    }
+
+    // 展示获得物品弹窗
+    let currentRewardItem = null;
+    function showRewardModal(item) {
+        const modal = document.getElementById('reward-modal');
+        const panel = document.getElementById('reward-panel');
+        const img = document.getElementById('reward-image');
+        const name = document.getElementById('reward-name');
+
+        currentRewardItem = {
+            id: 'furniture_' + Date.now(),
+            type: 'furniture',
+            name: item.item_name || '神秘纪念品',
+            image: item.image_url,
+            source_location: item.source_location || '旅途',
+            date: new Date().toLocaleDateString('zh-CN'),
+            tier: 'B' // 默认品质
+        };
+
+        img.src = item.image_url;
+        name.textContent = item.item_name || '神秘纪念品';
+        
+        modal.classList.remove('hidden');
+        // 简单的进入动画
+        setTimeout(() => {
+            panel.classList.remove('scale-95', 'opacity-0');
+            panel.classList.add('scale-100', 'opacity-100');
+        }, 10);
+    }
+
+    // 绑定奖励弹窗按钮事件
+    document.getElementById('btn-reward-close').addEventListener('click', () => {
+        if (currentRewardItem) {
+            addFurnitureToCabinet(currentRewardItem);
+            // 提示 Toast: 已放入橱柜
+        }
+        closeRewardModal();
+    });
+
+    document.getElementById('btn-reward-place').addEventListener('click', () => {
+        if (currentRewardItem) {
+            addFurnitureToCabinet(currentRewardItem);
+            placeFurnitureInRoom(currentRewardItem);
+        }
+        closeRewardModal();
+    });
+
+    function closeRewardModal() {
+        const modal = document.getElementById('reward-modal');
+        const panel = document.getElementById('reward-panel');
+        panel.classList.remove('scale-100', 'opacity-100');
+        panel.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            currentRewardItem = null;
+        }, 300);
+    }
+
+    // 添加家具到橱柜
+    function addFurnitureToCabinet(item) {
+        appState.cabinetItems = appState.cabinetItems || [];
+        appState.cabinetItems.unshift(item);
+        renderCabinetGrid();
+        saveState();
+    }
+
+    // 将家具放置到房间（数据层面）
+    function placeFurnitureInRoom(item) {
+        // 默认放置位置
+        const placement = {
+            id: 'placed_' + Date.now(), // 唯一实例 ID
+            itemId: item.id,
+            image: item.image,
+            x: 50, // % left
+            y: 80, // % top
+            scale: 1,
+            rotation: 0
+        };
+        appState.placedFurniture = appState.placedFurniture || [];
+        appState.placedFurniture.push(placement);
+        renderFurnitureLayer();
+        saveState();
+        
+        // 切换到房间视图
+        document.getElementById('btn-back-petroom').click(); 
+    }
+
+    // 渲染房间内的家具层
+    function renderFurnitureLayer() {
+        const container = document.getElementById('furniture-layer');
+        container.innerHTML = '';
+        const list = appState.placedFurniture || [];
+
+        list.forEach(p => {
+            const el = document.createElement('div');
+            el.className = 'furniture-item furniture-pop';
+            el.id = p.id;
+            el.style.left = p.x + '%';
+            el.style.top = p.y + '%';
+            el.style.width = (80 * p.scale) + 'px'; // 基准宽度 80px
+            
+            const img = document.createElement('img');
+            img.src = p.image;
+            img.className = 'w-full h-auto drop-shadow-md pointer-events-none select-none';
+            
+            // 删除按钮（仅在选中/编辑时显示，这里简化为双击删除或长按菜单，暂略）
+            
+            el.appendChild(img);
+            container.appendChild(el);
+
+            // 初始化拖拽
+            initDraggable(el, p);
+        });
+    }
+
+    // 初始化拖拽逻辑 (Touch & Mouse)
+    function initDraggable(el, data) {
+        let isDragging = false;
+        let startX, startY;
+        let startLeft, startTop;
+        const container = document.getElementById('room-viewport'); // 参考容器
+
+        const onStart = (clientX, clientY) => {
+            isDragging = true;
+            el.classList.add('editing');
+            startX = clientX;
+            startY = clientY;
+            
+            // 获取当前百分比位置转换为像素，以便计算 delta
+            const rect = el.getBoundingClientRect();
+            const parentRect = container.getBoundingClientRect();
+            startLeft = rect.left - parentRect.left;
+            startTop = rect.top - parentRect.top;
+            
+            // 阻止事件冒泡，避免触发背景拖动
+            // event.stopPropagation(); 
+        };
+
+        const onMove = (clientX, clientY) => {
+            if (!isDragging) return;
+            const deltaX = clientX - startX;
+            const deltaY = clientY - startY;
+            
+            const parentRect = container.getBoundingClientRect();
+            
+            // 计算新位置（像素）
+            let newLeft = startLeft + deltaX;
+            let newTop = startTop + deltaY;
+            
+            // 转换为百分比
+            let pctX = (newLeft / parentRect.width) * 100;
+            let pctY = (newTop / parentRect.height) * 100;
+            
+            el.style.left = pctX + '%';
+            el.style.top = pctY + '%';
+            
+            // 更新数据
+            data.x = pctX;
+            data.y = pctY;
+        };
+
+        const onEnd = () => {
+            if (isDragging) {
+                isDragging = false;
+                el.classList.remove('editing');
+                saveState(); // 拖拽结束保存
+            }
+        };
+
+        // Mouse events
+        el.addEventListener('mousedown', e => { onStart(e.clientX, e.clientY); e.stopPropagation(); });
+        window.addEventListener('mousemove', e => { if(isDragging) { onMove(e.clientX, e.clientY); e.preventDefault(); } });
+        window.addEventListener('mouseup', onEnd);
+
+        // Touch events
+        el.addEventListener('touchstart', e => { 
+            if(e.touches.length === 1) {
+                onStart(e.touches[0].clientX, e.touches[0].clientY); 
+                e.stopPropagation();
+            }
+        }, { passive: false });
+        
+        window.addEventListener('touchmove', e => { 
+            if(isDragging && e.touches.length === 1) {
+                onMove(e.touches[0].clientX, e.touches[0].clientY); 
+                e.preventDefault(); // 阻止滚动
+            }
+        }, { passive: false });
+        
+        window.addEventListener('touchend', onEnd);
+    }
+
+
     // 初始化入口
+    renderFurnitureLayer(); // 渲染已摆放家具
     renderCabinetGrid();
     renderMemoryWall();
     setupDiaryImageHandlers();
