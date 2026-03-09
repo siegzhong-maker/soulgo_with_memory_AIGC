@@ -79,15 +79,15 @@
             align-items: center;
             justify-content: flex-start;
             text-align: center;
-            min-height: 100px;
+            min-height: 96px;
             height: 100%;
-            padding: 0.5rem;
+            padding: 0.4rem 0.3rem;
             font-size: 11px;
             font-weight: bold;
         }
         .cabinet-slot__media {
             width: 100%;
-            height: 52px;
+            height: 56px;
             flex-shrink: 0;
             display: flex;
             align-items: center;
@@ -631,16 +631,16 @@
         /* 能量传递按钮区域 */
         #energy-fingerprint-area {
             position: absolute;
-            bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+            bottom: calc(env(safe-area-inset-bottom, 0px) + 40px);
             left: 50%;
             transform: translateX(-50%);
             transform-origin: center center;
-            width: 64px;
-            height: 64px;
+            width: 72px;
+            height: 72px;
             border-radius: 50%;
-            background: rgba(255, 255, 255, 0.3);
-            backdrop-filter: blur(5px);
-            border: 2px solid rgba(255, 255, 255, 0.6);
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.9);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -651,6 +651,7 @@
             -webkit-user-select: none;
             touch-action: manipulation;
             -webkit-touch-callout: none;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
         }
         #energy-fingerprint-area:active, #energy-fingerprint-area.active {
             /* 保持位置不动，只做高亮效果 */
@@ -731,16 +732,25 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.10);
         }
         #view-petroom .petroom-bottom-hint {
-            font-size: 11px;
-            opacity: 0.8;
+            bottom: calc(env(safe-area-inset-bottom, 0px) + 4px);
+            left: 50%;
+            transform: translateX(-50%);
+            width: auto;
+            max-width: 320px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 10px;
+            line-height: 1.3;
+            opacity: 0.9;
             background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(6px);
-            border-top: 1px solid rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         }
         .petroom-bottom-hint-strong {
-            opacity: 0.95 !important;
+            opacity: 1 !important;
             background: rgba(255, 255, 255, 0.98);
-            box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.10);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
         }
 
         /* 宠物房首次引导蒙层 */
@@ -1272,7 +1282,14 @@
         <!-- 能量粒子层 -->
         <div id="energy-particles"></div>
 
-        <p class="petroom-bottom-hint absolute bottom-0 left-0 w-full z-10 text-center text-[10px] text-gray-600 py-2 px-4 pointer-events-none opacity-50"><i class="ph-fill ph-info"></i> 长按指纹传递能量，点击场景发现惊喜；无操作约 15 秒后会让 AI 帮它想想，或点「让 AI 帮它想想～」</p>
+        <p class="petroom-bottom-hint absolute z-10 text-center text-gray-600 pointer-events-none">
+            <span class="inline-flex items-center justify-center gap-1">
+                <i class="ph-fill ph-info text-[11px]"></i>
+                <span class="text-[10px] font-medium">长按底部指纹，可以把今天的能量传给我。</span>
+            </span>
+            <br>
+            <span class="text-[9px] text-gray-500">一段时间不操作时，我会自己想想接下来要做什么～</span>
+        </p>
 
         <!-- 隐藏容器：承载旅行橱柜与旅行日记内容，正常视图中不展示 -->
         <div id="petroom-hidden-containers" class="hidden">
@@ -5602,7 +5619,7 @@ summary 30～50 字，第一人称，描述宠物在该地的具体表现或感�
 
     // --- 辅助函数：在橱柜中新增纪念品 ---
     const CABINET_SLOTS = 12;
-    const cabinetPlaceholderHTML = `<div class="cabinet-slot cabinet-slot--empty" data-placeholder="cabinet-empty"><div class="cabinet-slot__media"><img src="assets/cabinet-empty.svg" alt="橱柜" class="cabinet-empty-icon" width="40" height="40"></div><span>去旅行解锁</span></div>`;
+        const cabinetPlaceholderHTML = `<div class="cabinet-slot cabinet-slot--empty" data-placeholder="cabinet-empty"><div class="cabinet-slot__media"><img src="assets/cabinet-empty.svg" alt="橱柜" class="cabinet-empty-icon" width="40" height="40"></div><span class="text-[10px]">去旅行解锁</span></div>`;
 
     // --- 记忆墙渲染：随机散落在墙上的拍立得 ---
     function renderMemoryWall() {
@@ -5955,12 +5972,12 @@ summary 30～50 字，第一人称，描述宠物在该地的具体表现或感�
         const countText = countForInnerTab + ' 条记录';
 
         const tabBarHTML = `
-            <div class="flex items-center justify-between border-b border-gray-200 pb-2 mb-3">
-                <div class="flex gap-4">
-                    <button type="button" id="memory-tab-travel" class="memory-tab text-sm font-bold pb-1 border-b-2 transition-colors ${currentMemoryTab === 'travel' ? 'text-teal-700 border-teal-600' : 'text-gray-400 border-transparent'}">旅行记忆</button>
-                    <button type="button" id="memory-tab-character" class="memory-tab text-sm font-bold pb-1 border-b-2 transition-colors ${currentMemoryTab === 'character' ? 'text-teal-700 border-teal-600' : 'text-gray-400 border-transparent'}">性格碎片</button>
+            <div class="flex items-center justify-between border-b border-gray-100 pb-1 mb-2">
+                <div class="flex gap-3">
+                    <button type="button" id="memory-tab-travel" class="memory-tab text-[11px] font-semibold px-1 pb-1 border-b transition-colors ${currentMemoryTab === 'travel' ? 'text-teal-700 border-teal-600' : 'text-gray-400 border-transparent'}">旅行记忆</button>
+                    <button type="button" id="memory-tab-character" class="memory-tab text-[11px] font-semibold px-1 pb-1 border-b transition-colors ${currentMemoryTab === 'character' ? 'text-teal-700 border-teal-600' : 'text-gray-400 border-transparent'}">性格碎片</button>
                 </div>
-                <span class="text-xs text-gray-400">${countText}</span>
+                <span class="text-[10px] text-gray-400">${countText}</span>
             </div>
         `;
 
@@ -6037,10 +6054,10 @@ summary 30～50 字，第一人称，描述宠物在该地的具体表现或感�
         const currentDaily = dailyCardsWithIndex.filter(({ m }) => getTimeWindow(m) === 'current');
         const historyDaily = dailyCardsWithIndex.filter(({ m }) => getTimeWindow(m) !== 'current');
         const currentSection = currentTravel.length + currentDaily.length > 0
-            ? '<div class="mb-3"><div class="text-[11px] font-bold text-gray-500 mb-2">当前记忆</div><div class="flex flex-col gap-2">' + currentTravel.map(({ m, i }) => makeEpisodicCard(m, false, i)).join('') + currentDaily.map(({ m, i }) => makeEpisodicCard(m, true, i)).join('') + '</div></div>'
+            ? '<div class="mb-3"><div class="text-[11px] font-semibold text-gray-500 mb-1">当前记忆</div><div class="flex flex-col gap-2">' + currentTravel.map(({ m, i }) => makeEpisodicCard(m, false, i)).join('') + currentDaily.map(({ m, i }) => makeEpisodicCard(m, true, i)).join('') + '</div></div>'
             : '';
         const historySection = historyTravel.length + historyDaily.length > 0
-            ? '<div><div class="text-[11px] font-bold text-gray-500 mb-2">历史记忆（本周/本月/本年）</div><div class="flex flex-col gap-2">' + historyTravel.map(({ m, i }) => makeEpisodicCard(m, false, i)).join('') + historyDaily.map(({ m, i }) => makeEpisodicCard(m, true, i)).join('') + '</div></div>'
+            ? '<div><div class="text-[11px] font-semibold text-gray-500 mb-1">历史记忆（本周/本月/本年）</div><div class="flex flex-col gap-2">' + historyTravel.map(({ m, i }) => makeEpisodicCard(m, false, i)).join('') + historyDaily.map(({ m, i }) => makeEpisodicCard(m, true, i)).join('') + '</div></div>'
             : '';
         const travelCardsHTML = currentMemoryTab === 'travel' && (travelCardsWithIndex.length > 0 || dailyCardsWithIndex.length > 0)
             ? '<div class="flex flex-col gap-0">' + currentSection + historySection + '</div>'
@@ -6056,16 +6073,16 @@ summary 30～50 字，第一人称，描述宠物在该地的具体表现或感�
                 <div class="text-[10px] text-gray-400 mb-1">人格设定</div>
                 ${profile.identity ? '<div class="text-xs text-gray-700 mb-2">' + escapeHtml(profile.identity) + '</div>' : ''}
                 ${(profile.preferences && (profile.preferences.food || profile.preferences.dislikes || profile.preferences.abilities)) ? '<div class="text-[11px] text-gray-600 space-y-1">' + (profile.preferences.food ? '<div>喜好：' + escapeHtml(profile.preferences.food) + '</div>' : '') + (profile.preferences.dislikes ? '<div>不喜欢：' + escapeHtml(profile.preferences.dislikes) + '</div>' : '') + (profile.preferences.abilities ? '<div>能力：' + escapeHtml(profile.preferences.abilities) + '</div>' : '') + '</div>' : ''}
-                ${(profile.speaking_style && profile.speaking_style.description) ? '<div class="text-[11px] text-gray-500 mt-2">' + escapeHtml(profile.speaking_style.description) + '</div>' : ''}
+                ${(profile.speaking_style && profile.speaking_style.description) ? '<div class="text-[11px] text-gray-500 mt-2 border-t border-gray-100 pt-1.5">' + escapeHtml(profile.speaking_style.description) + '</div>' : ''}
                 ${(profile.call_user && profile.call_user.length) ? '<div class="text-[10px] text-gray-400 mt-1">称呼你：' + escapeHtml(profile.call_user.join('、')) + '</div>' : ''}
             </div>
         ` : '';
 
         const habitCardsHTML = (currentMemoryTab === 'character' && habits.length > 0) ? habits.map((h, idx) =>
-            '<div class="memory-card bg-white rounded-xl p-3 shadow-md border border-gray-100 text-left relative" data-memory-type="habit" data-habit-index="' + idx + '"><button type="button" class="memory-edit-btn absolute top-2 right-2 text-[10px] text-gray-500 hover:text-[#ff8fab] px-1.5 py-0.5 rounded">编辑</button><div class="text-[10px] text-gray-400 mb-1">' + escapeHtml(h.generated_at || '') + '</div><div class="text-xs text-gray-700 leading-relaxed">' + escapeHtml(h.summary || '') + '</div></div>'
+            '<div class="memory-card bg-white rounded-xl p-3 shadow-md border border-gray-100 text-left relative" data-memory-type="habit" data-habit-index="' + idx + '"><button type="button" class="memory-edit-btn absolute top-2 right-2 text-[10px] text-gray-500 hover:text-[#ff8fab] px-1.5 py-0.5 rounded">编辑</button>' + (h.generated_at ? '<div class="text-[10px] text-gray-400 mb-1">' + escapeHtml(h.generated_at) + '</div>' : '') + '<div class="text-xs text-gray-700 leading-relaxed">' + escapeHtml(h.summary || '') + '</div></div>'
         ).join('') : '';
 
-        const characterEmptyHTML = (currentMemoryTab === 'character' && !(profile && profile.identity) && habits.length === 0) ? '<p class="text-center text-xs text-gray-500 py-4">我还没有记下这类呢。</p>' : '';
+        const characterEmptyHTML = (currentMemoryTab === 'character' && !(profile && profile.identity) && habits.length === 0) ? '<div class="flex flex-col items-center justify-center text-center text-xs text-gray-500 py-4 gap-2"><p>我还没有记下这类呢。</p></div>' : '';
 
         const travelPanelHTML = currentMemoryTab === 'travel' ? (travelCardsHTML || travelEmptyHTML) : '';
         const characterPanelHTML = currentMemoryTab === 'character' ? (identityBlock + habitCardsHTML + (characterEmptyHTML && !identityBlock && !habitCardsHTML ? characterEmptyHTML : '')) : '';
