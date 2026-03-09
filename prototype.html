@@ -472,14 +472,6 @@
             display: none;
         }
 
-        /* 宠物之家背后空白区域背景图 */
-        #room-viewport {
-            background-image: url('assets/enchanted-forest-path.jpg');
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-        }
-
         /* 宠物页入场：房间卡片与宠物轻微动画 */
         .page-view#view-petroom.entrance .room-viewport-entrance {
             animation: roomEntrance 0.4s ease-out forwards;
@@ -782,6 +774,8 @@
         <!-- 房间区域：铺满剩余空间，底图由 view-petroom 背景提供 -->
         <div id="room-viewport" class="absolute inset-0 w-full h-full overflow-hidden flex items-center justify-center touch-none room-viewport-entrance z-0">
             <div id="room-scene" class="absolute top-0 left-0 h-full w-auto flex justify-center items-center" style="transform-origin: 0 0;">
+                <!-- 森林背景层：与房间一起 transform，拖拽时同步移动 -->
+                <div id="room-scene-forest-bg" class="absolute -left-[50vw] -top-[50vw] w-[200vw] min-w-[200vw] h-[200vh] min-h-[200vh] -z-10 pointer-events-none bg-cover bg-center bg-no-repeat" style="background-image: url('assets/enchanted-forest-path.jpg');"></div>
                 <!-- 房间背景图：高度自适应，宽度允许超出 -->
                 <img id="room-scene-bg" src="场景/场景.png" alt="房间背景" class="h-full w-auto max-w-none block select-none pointer-events-none object-cover">
 
