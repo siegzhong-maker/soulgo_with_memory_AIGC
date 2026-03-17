@@ -28,11 +28,11 @@ const DIARY_SYSTEM_PROMPT = `你是一只旅行电子宠物，用第一人称给
 【输入字段】
 我会提供一段 JSON，里面包含：
 - date: 当前日期
-- location: 本次打卡地点
+- location: 本次打卡地点（打卡点）
 - petPersonality: 宠物性格（如“小火苗”等）
 - ownerTitle: 宠物平时对主人的称呼（如“伙伴”“训练家”等）
 - episodicMemories: 相关的近期旅行记忆摘要数组，每条是简短的一两句话
-- semanticTraits: 长期偏好/性格碎片（本轮会包含“爱美食”等）
+- semanticTraits: 长期偏好/性格碎片（例如：爱美食），由“性格 + 爱好”组合决定
 
 【你要输出的 JSON（必须严格使用此结构）】
 只输出一行 JSON，不能有其他任何文字、解释或 markdown：
@@ -74,6 +74,15 @@ const DIARY_SYSTEM_PROMPT = `你是一只旅行电子宠物，用第一人称给
 - cabinetPlan.unlockItems 可以为空数组；如果本次地点没有明显“纪念品”，就返回空数组。
 - thinkingSteps 建议 2～4 条，每条尽量短一些，但要具体、有画面。`;
 
+function getHobbyForPersonality(personality) {
+  const key = personality || '';
+  if (key.includes('小火苗')) return '爱美食';
+  if (key.includes('小云朵')) return '爱发呆';
+  if (key.includes('小灯泡')) return '爱观察';
+  if (key.includes('小石头')) return '爱安静';
+  return '爱美食';
+}
+
 function buildDiaryUserPrompt(payload, episodicMemories, semanticTraits) {
   const {
     date,
@@ -90,7 +99,7 @@ function buildDiaryUserPrompt(payload, episodicMemories, semanticTraits) {
   const safeLanguage = language || 'zh-CN';
 
   const em = Array.isArray(episodicMemories) ? episodicMemories : [];
-  const traits = Array.isArray(semanticTraits) ? semanticTraits : ['爱美食'];
+  const traits = Array.isArray(semanticTraits) ? semanticTraits : [];
 
   const ctx = {
     date: safeDate,
@@ -111,10 +120,11 @@ ${JSON.stringify(ctx, null, 2)}
 async function fetchRagMemories(location, petPersonality) {
   try {
     const queryPieces = [];
+    const personalityLabel = petPersonality ? String(petPersonality) : '';
+    const hobby = getHobbyForPersonality(personalityLabel);
+    if (personalityLabel) queryPieces.push(personalityLabel);
+    if (hobby) queryPieces.push(hobby);
     if (location) queryPieces.push(String(location));
-    if (petPersonality) queryPieces.push(String(petPersonality));
-    // 注入预设爱好「爱美食」以偏向美食相关记忆
-    queryPieces.push('爱美食');
     const query = queryPieces.join(' ');
 
     const res = await fetch(new URL('/api/retrieve', process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'), {
@@ -221,9 +231,10 @@ export async function POST(request) {
     );
   }
 
-  // 1. RAG 检索：拿到若干条相关记忆作为 episodicMemories
+  // 1. RAG 检索：拿到若干条相关记忆作为 episodicMemories（由性格 + 爱好 + 打卡点组成查询）
   const episodicMemories = await fetchRagMemories(location, petPersonality);
-  const semanticTraits = ['爱美食'];
+  const hobby = getHobbyForPersonality(petPersonality);
+  const semanticTraits = hobby ? [hobby] : [];
 
   // 2. 调用 OpenRouter 生成统一 JSON
   const userPrompt = buildDiaryUserPrompt(payload, episodicMemories, semanticTraits);
